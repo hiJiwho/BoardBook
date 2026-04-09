@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>BoardBook Whiteboard</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        #canvas {
+            display: block;
+            background: #fff;
+            cursor: crosshair;
+        }
+        .toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 60px;
+            background: #0f172a;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .tool {
+            width: 44px;
+            height: 44px;
+            margin: 0 8px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tool:hover { background: rgba(255,255,255,0.1); }
+        .tool.active { background: #2dd4bf; color: #0f172a; }
+        
+        .color-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin: 0 10px;
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        .color-dot.active { border-color: #2dd4bf; transform: scale(1.2); }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="toolbar">
+        <div class="tool active" id="toolPencil"><i class="fas fa-pencil-alt"></i></div>
+        <div class="tool" id="toolEraser"><i class="fas fa-eraser"></i></div>
+        <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.2); margin: 0 10px;"></div>
+        <div class="color-dot active" style="background: #000;" data-color="#000"></div>
+        <div class="color-dot" style="background: #ef4444;" data-color="#ef4444"></div>
+        <div class="color-dot" style="background: #3b82f6;" data-color="#3b82f6"></div>
+        <div class="color-dot" style="background: #10b981;" data-color="#10b981"></div>
+        <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.2); margin: 0 10px;"></div>
+        <div class="tool" id="toolClear" title="전체 지우기"><i class="fas fa-trash-alt"></i></div>
+    </div>
+
+    <script src="whiteboard-renderer.js"></script>
+</body>
+</html>

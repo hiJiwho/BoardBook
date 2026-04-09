@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html><head><style>
+body, html { margin:0; padding:0; width:100vw; height:100vh; background:transparent; overflow:hidden; }
+</style></head>
+<body><script>
+const { ipcRenderer } = require('electron');
+
+function getModifiers(e) {
+    const mods = [];
+    if (e.ctrlKey) mods.push('control');
+    if (e.shiftKey) mods.push('shift');
+    if (e.altKey) mods.push('alt');
+    if (e.metaKey) mods.push('meta');
+    return mods;
+}
+
+// ── 우클릭: BBPlus 다이얼로그 ──
+document.addEventListener('mousedown', (e) => {
+    if (e.button === 2) {
+        e.preventDefault();
+        const relX = (e.clientX / window.innerWidth) * 100;
+        const relY = (e.clientY / window.innerHeight) * 100;
+        ipcRenderer.send('bbplus:shield-right-click', {
+            x: relX, y: relY,
+            info: { tag: 'BODY' },
+            winSize: { w: window.innerWidth, h: window.innerHeight }
+        });
+        return;
+    }
+    // ── 좌클릭/중클릭 ──
+    ipcRenderer.send('bb:shield-forward', {
+        type: 'mouseDown', x: e.clientX, y: e.clientY,
+        button: e.button === 0 ? 'left' : 'middle',
+        clickCount: e.detail,
+        modifiers: getModifiers(e)
+    });
+}, true);
+
+document.addEventListener('mouseup', (e) => {
+    if (e.button === 2) return;
+    ipcRenderer.send('bb:shield-forward', {
+        type: 'mouseUp', x: e.clientX, y: e.clientY,
+        button: e.button === 0 ? 'left' : 'middle',
+        modifiers: getModifiers(e)
+    });
+}, true);
+
+// Hover 지원을 위해 모든 mousemove 전달 (디바운스 없이 실시간)
+document.addEventListener('mousemove', (e) => {
+    // Note: 우클릭 중에는 전달 안 함
+    if (e.buttons & 2) return;
+    ipcRenderer.send('bb:shield-forward', {
+        type: 'mouseMove', x: e.clientX, y: e.clientY,
+        modifiers: getModifiers(e)
+    });
+}, true);
+
+document.addEventListener('wheel', (e) => {
+    ipcRenderer.send('bb:shield-forward', {
+        type: 'mouseWheel', x: e.clientX, y: e.clientY,
+        deltaX: e.deltaX, deltaY: e.deltaY,
+        modifiers: getModifiers(e)
+    });
+}, { passive: true, capture: true });
+
+document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+}, true);
+</script></body></html>

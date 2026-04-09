@@ -1,0 +1,38 @@
+{
+  "name": "boardbook-app",
+  "version": "0.9.7-beta",
+  "description": "BoardBook Launcher - Smart Classroom Solution",
+  "author": "jiwho",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder -w"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "electron": "^41.0.2",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.boardbook.app",
+    "productName": "BoardBook",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "BoardBook",
+      "include": "installer.nsh"
+    }
+  }
+}

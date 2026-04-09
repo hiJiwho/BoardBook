@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBImg - Premium Image Viewer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --m3-surface: #f4fbf9;
+            --m3-surface-container: #ecf3f1;
+            --m3-on-surface: #161d1c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+
+        body {
+            background: var(--m3-surface-container);
+            color: var(--m3-on-surface);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            justify-content: center;
+            align-items: center;
+        }
+
+
+
+        .img-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px; 
+            background: #e1e9e7; /* M3 surface-container-high */
+            overflow: auto;
+        }
+
+        img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .img-container:active img { cursor: grabbing; }
+
+        .overlay-info {
+            position: absolute;
+            bottom: 30px;
+            padding: 12px 24px;
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 14px;
+            opacity: 0.6;
+            transition: opacity 0.3s;
+        }
+        .overlay-info:hover { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div class="img-container" id="container">
+        <img id="main-img" src="" alt="BoardBook Asset">
+    </div>
+
+    <div class="overlay-info" id="info">Loading Image...</div>
+
+    <script>
+        const img = document.getElementById('main-img');
+        const info = document.getElementById('info');
+        const params = new URLSearchParams(window.location.search);
+        const imgSrc = params.get('i');
+
+        if (imgSrc) {
+            img.src = imgSrc;
+            const filename = decodeURIComponent(imgSrc.split('/').pop().split('?')[0]);
+            info.textContent = filename;
+        }
+
+        let scale = 1;
+        document.getElementById('container').onwheel = (e) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                scale += e.deltaY * -0.001;
+                scale = Math.min(Math.max(.125, scale), 4);
+                img.style.transform = `scale(${scale})`;
+            }
+        };
+
+        const { ipcRenderer } = require('electron');
+        ipcRenderer.on('bb:img-zoom-in', () => { scale = Math.min(4, scale + 0.2); img.style.transform = `scale(${scale})`; });
+        ipcRenderer.on('bb:img-zoom-out', () => { scale = Math.max(0.125, scale - 0.2); img.style.transform = `scale(${scale})`; });
+        ipcRenderer.on('bb:img-reset', () => { scale = 1; img.style.transform = `scale(${scale})`; });
+    </script>
+</body>
+</html>

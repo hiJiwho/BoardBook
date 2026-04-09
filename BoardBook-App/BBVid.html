@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        /* Hide Chromium Native Controls */
+        video::-webkit-media-controls { display: none !important; }
+    </style>
+</head>
+<body>
+    <video id="v" playsinline draggable="false" preload="metadata" oncontextmenu="return false;"></video>
+    <script>
+        const { ipcRenderer } = require('electron');
+        const v = document.getElementById('v');
+        
+        // Log helper
+        const log = (msg, data = '') => {
+            console.log(`[BBVid] ${msg}`, data);
+            ipcRenderer.send('bb:log', `[BBVid] ${msg} ${JSON.stringify(data)}`);
+        };
+
+        const getVParam = () => {
+            const search = window.location.search;
+            if (!search) return null;
+            const match = search.match(/[?&]v=([^&]*)/);
+            if (!match) return null;
+            return decodeURIComponent(match[1]);
+        };
+
+        const videoSrc = getVParam();
+        if (videoSrc) {
+            log('Initializing video source', videoSrc);
+            v.src = videoSrc;
+            // v.load() removed to reduce initialization churn
+        }
+
+        ipcRenderer.on('bb:vid-play-pause', (e, m) => {
+            log('Play/Pause command received', m);
+            if (m === 'pause') v.pause();
+            else if (m === 'play') v.play().catch(e => log('Play fail', e.message));
+            else if (m === 'toggle') v.paused ? v.play() : v.pause();
+        });
+
+        // Skip logic with safety checks
+        ipcRenderer.on('bb:vid-rewind', () => {
+            if (v.readyState > 0) v.currentTime = Math.max(0, v.currentTime - 10);
+        });
+        ipcRenderer.on('bb:vid-forward', () => {
+            if (v.duration && v.readyState > 0) v.currentTime = Math.min(v.duration, v.currentTime + 10);
+        });
+
+        ipcRenderer.on('bb:vid-volume', () => v.muted = !v.muted);
+        ipcRenderer.on('bb:vid-control-signal', (e, action) => {
+            if (action === 'mute' || action === 'reset') v.muted = !v.muted;
+            else if (action === 'up') v.volume = Math.min(1, v.volume + 0.1);
+            else if (action === 'down') v.volume = Math.max(0, v.volume - 0.1);
+        });
+
+        ipcRenderer.on('bb:vid-speed', (e, s) => v.playbackRate = s);
+
+        // --- Stabilization Logic ---
+        let retryCount = 0;
+        const MAX_RETRIES = 2;
+        let lastTime = -1;
+        let stallCheckTimer = null;
+
+        v.addEventListener('playing', () => {
+            log('Playback started');
+            retryCount = 0;
+            // Watch for frozen playback (Decoder crash)
+            if (stallCheckTimer) clearInterval(stallCheckTimer);
+            stallCheckTimer = setInterval(() => {
+                if (!v.paused && v.currentTime === lastTime) {
+                    log('Stall detected (time frozen)');
+                    v.currentTime += 0.01; // Tiny nudge
+                }
+                lastTime = v.currentTime;
+            }, 3000);
+        });
+
+        v.addEventListener('error', (e) => {
+            const err = v.error;
+            log('CRITICAL ERROR', { code: err.code, message: err.message });
+            
+            if (err.code === 3 || err.code === 4) { // DECODE or SRC error
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    const skipAmount = 2.0; // Larger skip to bypass corruption/stalls
+                    log(`Attempting recovery ${retryCount}/${MAX_RETRIES} (Jumping ${skipAmount}s)`);
+                    
+                    const targetTime = v.currentTime + skipAmount;
+                    
+                    // Strategy: Try to just skip first without full reload
+                    if (v.readyState > 0) {
+                        v.currentTime = targetTime;
+                        v.play().catch(() => {});
+                    } else {
+                        // Full reload strategy
+                        setTimeout(() => {
+                            v.src = videoSrc;
+                            v.addEventListener('loadedmetadata', () => {
+                                v.currentTime = targetTime;
+                                v.play().catch(e => log('Recovery play fail', e.message));
+                            }, { once: true });
+                        }, 1000);
+                    }
+                }
+            }
+        });
+
+        v.addEventListener('waiting', () => log('Waiting/Buffering...'));
+        v.addEventListener('stalled', () => log('Stalled.'));
+        
+        // Auto-play attempt
+        v.addEventListener('canplay', () => {
+            v.play().catch(e => {
+                log('Autoplay blocked, trying muted');
+                v.muted = true;
+                v.play().catch(e => log('Muted play also failed', e.message));
+            });
+        }, { once: true });
+
+        window.oncontextmenu = (e) => e.preventDefault();
+    </script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: rgba(15, 23, 42, 0.95);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        body, html {
+            margin: 0; padding: 0;
+            width: 100vw; height: 100vh;
+            background: transparent;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+            pointer-events: none; /* Let clicks pass to the browser below by default */
+        }
+        
+        .search-overlay {
+            position: absolute;
+            top: 60px; /* Float slightly below the top edge */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            max-width: 800px;
+            background: var(--bg-color);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            display: flex; /* controlled by JS */
+            align-items: center;
+            padding: 8px 16px;
+            gap: 12px;
+            z-index: 9999;
+            pointer-events: auto; /* Catch clicks on the overlay itself */
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .search-overlay.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(10px);
+        }
+
+        .icon {
+            color: var(--text-muted);
+            font-size: 16px;
+        }
+
+        #urlInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-size: 16px;
+            outline: none;
+            font-family: inherit;
+        }
+        
+        #urlInput::placeholder {
+            color: rgba(255,255,255,0.3);
+        }
+
+        .btn-close {
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+        .btn-close:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-overlay" id="searchOverlay" style="display: none;">
+        <i class="fas fa-search icon"></i>
+        <input type="text" id="urlInput" placeholder="URL을 입력하세요 (예: https://example.com)" autocomplete="off" spellcheck="false" />
+        <i class="fas fa-times btn-close" id="btnClose" title="닫기 (Esc)"></i>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        const searchOverlay = document.getElementById('searchOverlay');
+        const urlInput = document.getElementById('urlInput');
+        const btnClose = document.getElementById('btnClose');
+        
+        urlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                let val = urlInput.value.trim();
+                if (val && !val.includes('://') && !val.startsWith('mailto:')) val = 'https://' + val;
+                if (val) {
+                    ipcRenderer.send('bb:url-go', val);
+                    hideOverlay();
+                }
+            } else if (e.key === 'Escape') {
+                hideOverlay();
+            }
+        });
+
+        btnClose.onclick = hideOverlay;
+
+        function hideOverlay() {
+            searchOverlay.classList.remove('visible');
+            setTimeout(() => {
+                searchOverlay.style.display = 'none';
+                ipcRenderer.send('bb:hide-url-bar');
+            }, 200);
+        }
+
+        function showOverlay() {
+            searchOverlay.style.display = 'flex';
+            // Force reflow for transition
+            searchOverlay.getBoundingClientRect();
+            searchOverlay.classList.add('visible');
+            urlInput.focus();
+            urlInput.select();
+        }
+
+        ipcRenderer.on('bb:show-search-bar', () => {
+            if (searchOverlay.style.display === 'none') {
+                showOverlay();
+            } else {
+                hideOverlay();
+            }
+        });
+
+        ipcRenderer.on('bb:url-changed', (event, url) => {
+            urlInput.value = url;
+        });
+
+        // Initialize with default query URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialUrl = urlParams.get('u');
+        if (initialUrl) {
+            urlInput.value = initialUrl;
+        }
+    </script>
+</body>
+</html>

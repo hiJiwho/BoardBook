@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>BoardBook PDF Viewer</title>
+    <!-- Use a reliable CDNs for pdf.js -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; margin: 0; }
+        #viewer-container { 
+            width: 100%; 
+            height: 100vh; 
+            overflow: auto; 
+            background: #e1e9e7; /* M3 surface-container-high (Mint/Teal) */
+            scroll-behavior: auto;
+            cursor: grab;
+            display: flex;
+        }
+        #inner-wrapper {
+            display: flex;
+            min-width: 100%;
+            min-height: 100%;
+            padding: 8px; 
+            box-sizing: border-box;
+        }
+        #canvas-container { 
+            position: relative; 
+            margin: auto; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); 
+            background: white; 
+            cursor: inherit; 
+            flex-shrink: 0;
+            border-radius: 4px;
+        }
+        canvas { display: block; cursor: inherit; border-radius: 4px; }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #6f7977; border-radius: 10px; border: 3px solid #e1e9e7; }
+        ::-webkit-scrollbar-thumb:hover { background: #006a60; }
+    </style>
+</head>
+<body>
+    <div id="viewer-container">
+        <div id="inner-wrapper">
+            <div id="canvas-container">
+                <canvas id="pdf-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        const { ipcRenderer } = require('electron');
+        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs';
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('viewer-container');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const pdfUrl = urlParams.get('v');
+
+        let pdfDoc = null;
+        let pageNum = 1;
+        let scale = 1.5;
+        let isRendering = false;
+        let pageRenderingQueue = null;
+
+        async function renderPage(num) {
+            isRendering = true;
+            const page = await pdfDoc.getPage(num);
+            
+            const viewport = page.getViewport({ scale });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+
+            await page.render(renderContext).promise;
+            isRendering = false;
+            
+            if (pageRenderingQueue !== null) {
+                renderPage(pageRenderingQueue);
+                pageRenderingQueue = null;
+            }
+        }
+
+        function queueRenderPage(num) {
+            if (isRendering) pageRenderingQueue = num;
+            else renderPage(num);
+        }
+
+        if (pdfUrl) {
+            pdfjsLib.getDocument(pdfUrl).promise.then(doc => {
+                pdfDoc = doc;
+                renderPage(pageNum);
+            }).catch(err => console.error('PDF Load Error:', err));
+        }
+
+        // IPC Listeners from Sidebar
+        ipcRenderer.on('bb:pdf-prev', () => {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+            container.scrollTop = 0;
+        });
+
+        ipcRenderer.on('bb:pdf-next', () => {
+            if (!pdfDoc || pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+            container.scrollTop = 0;
+        });
+
+        ipcRenderer.on('bb:pdf-zoom-in', () => {
+            scale *= 1.2;
+            queueRenderPage(pageNum);
+        });
+
+        ipcRenderer.on('bb:pdf-zoom-out', () => {
+            scale /= 1.2;
+            queueRenderPage(pageNum);
+        });
+
+        ipcRenderer.on('bb:pdf-fit-h', async () => {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1 });
+            scale = (container.clientWidth - 80) / viewport.width;
+            queueRenderPage(pageNum);
+        });
+
+        ipcRenderer.on('bb:pdf-fit-v', async () => {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1 });
+            scale = (container.clientHeight - 80) / viewport.height;
+            queueRenderPage(pageNum);
+        });
+
+        // --- Mouse Drag-to-Scroll (Hand Tool) ---
+        let isDragging = false;
+        let startX, startY, scrollLeft, scrollTop;
+
+        container.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            container.style.cursor = 'grabbing';
+            startX = e.clientX;
+            startY = e.clientY;
+            scrollLeft = container.scrollLeft;
+            scrollTop = container.scrollTop;
+            e.preventDefault();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            container.style.cursor = 'grab';
+        });
+
+        container.addEventListener('mouseleave', () => {
+            isDragging = false;
+            container.style.cursor = 'grab';
+        });
+
+        container.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = e.clientX;
+            const y = e.clientY;
+            // Add a small multiplier for smoother feel on high-res
+            const walkX = (x - startX) * 1.2; 
+            const walkY = (y - startY) * 1.2;
+            container.scrollLeft = scrollLeft - walkX;
+            container.scrollTop = scrollTop - walkY;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>BoardBook Proxy Layer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Material 3 Color Palette (Tonal Palettes) */
+            --m3-primary: #0061a4;
+            --m3-on-primary: #ffffff;
+            --m3-primary-container: #d1e4ff;
+            --m3-on-primary-container: #001d36;
+            --m3-surface: #fdfbff;
+            --m3-on-surface: #1a1c1e;
+            --m3-surface-container: #f0f4f9;
+            --m3-surface-container-high: #e2e8f0;
+            --m3-outline: #74777f;
+            --m3-outline-variant: #c4c6cf;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: transparent;
+            user-select: none;
+            -webkit-app-region: no-drag;
+            pointer-events: none;
+            font-family: 'Outfit', 'Segoe UI', sans-serif;
+        }
+
+        /* Material 3 Dialog (Redesigned) */
+        #bbplus-dialog {
+            position: fixed; display: none;
+            background: var(--m3-surface-container);
+            border: 1px solid var(--m3-outline-variant);
+            border-radius: 28px; /* M3 Large Rounding */
+            width: 360px; 
+            max-height: calc(100% - 80px);
+            box-shadow: 0 4px 30px rgba(0,0,0,0.15);
+            z-index: 2000;
+            backdrop-filter: blur(20px);
+            pointer-events: auto;
+            box-sizing: border-box;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        .bbp-dialog-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 24px 24px 16px 24px;
+            flex-shrink: 0;
+        }
+
+        .bbp-dialog-close {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; border-radius: 20px;
+            background: transparent; color: var(--m3-on-surface);
+            font-size: 20px;
+            transition: background 0.2s;
+        }
+        .bbp-dialog-close:hover { background: rgba(0,0,0,0.05); }
+
+        .bbp-dialog-body {
+            padding: 0 24px 24px 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .bbp-dialog-body::-webkit-scrollbar { width: 6px; }
+        .bbp-dialog-body::-webkit-scrollbar-thumb { background: var(--m3-outline-variant); border-radius: 3px; }
+
+        .bbplus-label { color: var(--m3-on-surface); font-size: 14px; font-weight: 500; margin-bottom: 12px; display: block; opacity: 0.8; }
+
+        .bbplus-input { 
+            width: 100%; height: 56px;
+            background: var(--m3-surface); border: 1px solid var(--m3-outline); 
+            color: var(--m3-on-surface); padding: 0 16px; border-radius: 12px;
+            box-sizing: border-box; font-size: 16px; outline: none;
+            transition: border-width 0.1s, border-color 0.1s;
+        }
+        .bbplus-input:focus { border-width: 2px; border-color: var(--m3-primary); }
+
+        .bbplus-btn { 
+            width: 100%; height: 40px; border-radius: 20px;
+            border: none; cursor: pointer; font-weight: 600; font-size: 14px;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+
+        .apply-btn { 
+            background: var(--m3-primary); color: var(--m3-on-primary); 
+            height: 56px !important; border-radius: 16px !important;
+            font-size: 16px !important;
+        }
+        .apply-btn:hover { background: #005a9c; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+        .bbp-dialog-footer { padding: 16px 24px 24px 24px; flex-shrink: 0; }
+
+        /* M3 Tonal Buttons for File Picking */
+        .pick-btn { background: var(--m3-surface-container-high); color: var(--m3-on-surface); border: 1px solid var(--m3-outline-variant); }
+        .pick-btn:hover { background: var(--m3-outline-variant); }
+
+        /* M3 Hotspot */
+        .bbplus-hotspot {
+            position: fixed; width: 48px; height: 48px;
+            border-radius: 16px; /* M3 Medium Rounding */
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            cursor: pointer; z-index: 100; font-size: 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: auto; 
+            border: none;
+            background: var(--m3-primary-container);
+            color: var(--m3-on-primary-container);
+            animation: m3-pulse 3s infinite;
+        }
+        @keyframes m3-pulse {
+            0% { transform: scale(1); box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
+            50% { transform: scale(1.1); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+            100% { transform: scale(1); box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
+        }
+
+        .bbp-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+
+        .color-dot {
+            width: 32px; height: 32px; border-radius: 16px;
+            cursor: pointer; border: 2px solid transparent; transition: all 0.2s;
+        }
+        .color-dot.active { border-color: var(--m3-primary); transform: scale(1.15); box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+
+        .icon-box {
+            width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+            background: var(--m3-surface); border-radius: 12px;
+            cursor: pointer; font-size: 20px; transition: all 0.2s; border: 1px solid var(--m3-outline-variant);
+        }
+        .icon-box.active { background: var(--m3-primary-container); border-color: var(--m3-primary); color: var(--m3-on-primary-container); }
+
+        .bbp-tabs { display: flex; gap: 8px; margin: 0 -24px 20px -24px; padding: 0 24px; border-bottom: 1px solid var(--m3-outline-variant); }
+        .bbp-tab { padding: 12px 16px; font-size: 14px; font-weight: 500; color: var(--m3-on-surface); opacity: 0.6; cursor: pointer; border-bottom: 2px solid transparent; }
+        .bbp-tab.active { opacity: 1; color: var(--m3-primary); border-bottom-color: var(--m3-primary); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: m3-fade 0.2s ease-out; }
+        @keyframes m3-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Hotspot Context Menu M3 */
+        #hotspot-ctx-menu {
+            position: fixed; background: var(--m3-surface-container); color: var(--m3-on-surface); border-radius: 12px;
+            padding: 8px 0; border: 1px solid var(--m3-outline-variant); 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 100000;
+            min-width: 180px; font-size: 14px; display: none;
+            backdrop-filter: blur(10px);
+        }
+        .ctx-item { 
+            padding: 12px 20px; cursor: pointer; transition: all 0.2s; 
+            display: flex; align-items: center; gap: 16px; font-weight: 500;
+        }
+        .ctx-item:hover { background: var(--m3-primary-container); color: var(--m3-on-primary-container); }
+
+        #bbp-text-overlay {
+            position: fixed; z-index: 10000;
+            background: var(--m3-surface-container-high); color: var(--m3-on-surface);
+            padding: 16px 24px; border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            pointer-events: none; display: none;
+            max-width: 400px; line-height: 1.6;
+            border: 1px solid var(--m3-outline-variant);
+        }
+    </style>
+</head>
+<body>
+    <!-- Legacy header removed, now using Mint Sidebar -->
+
+    <!-- Smart Imposter Screenshot Layer -->
+    <canvas id="imposter-layer"></canvas>
+    
+    <!-- UI Drawing Layer -->
+    <canvas id="ui-canvas"></canvas>
+    
+
+    <!-- BBPlus Mapping Dialog (Redesigned) -->
+    <div id="bbplus-dialog">
+        <!-- Dialog Header -->
+        <div class="bbp-dialog-header" style="background: var(--m3-primary); margin: -1px -1px 0 -1px; border-radius: 28px 28px 0 0;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 0 4px;">
+                <span style="font-size: 20px;">📌</span>
+                <span style="font-size: 16px; font-weight: 700; color: var(--m3-on-primary);">BBPlus 매핑</span>
+            </div>
+            <div class="bbp-dialog-close" onclick="closeMapping()" title="닫기" style="color: var(--m3-on-primary); opacity: 0.8;">✕</div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="bbp-dialog-body">
+            <!-- Palette 1: Colors -->
+            <div class="bbplus-label" style="margin-bottom: 8px;">색상 선택</div>
+            <div id="color-palette" class="bbp-row">
+                <!-- Rendered via JS -->
+            </div>
+
+            <!-- Palette 2: Icons -->
+            <div class="bbplus-label" style="margin-bottom: 8px;">아이콘 선택</div>
+            <div id="icon-palette" class="bbp-row">
+                <!-- Rendered via JS -->
+            </div>
+
+            <!-- Tabs Menu -->
+            <div class="bbp-tabs">
+                <div class="bbp-tab active" data-tab="url">🔗 URL</div>
+                <div class="bbp-tab" data-tab="vid">🎬 영상</div>
+                <div class="bbp-tab" data-tab="pdf">📄 PDF</div>
+                <div class="bbp-tab" data-tab="img">🖼️ 이미지</div>
+            </div>
+
+            <!-- Tab Contents -->
+            <div id="tab-url" class="tab-content active">
+                <div class="bbplus-input-group">
+                    <input type="text" id="val-url" class="bbplus-input" placeholder="example.com">
+                    <span class="bbplus-label" style="margin-top: 8px; font-size: 12px; opacity: 0.6;">(https:// 자동 추가)</span>
+                </div>
+                <button class="bbplus-btn pick-btn" onclick="saveMapping('url')">🔗 웹 링크 저장</button>
+            </div>
+
+            <div id="tab-vid" class="tab-content">
+                <div class="bbplus-input-group">
+                    <input type="text" id="val-vid" class="bbplus-input" placeholder="영상 파일 선택됨" readonly style="margin-bottom: 12px;">
+                    <button class="bbplus-btn pick-btn" onclick="pickFileMapping('vid')">🎬 내 PC 영상 선택...</button>
+                </div>
+                <div style="margin-top:-8px; margin-bottom: 12px; font-size:12px; color: var(--m3-outline);"> (또는 URL 탭에서 링크 입력)</div>
+            </div>
+
+            <div id="tab-pdf" class="tab-content">
+                <div class="bbplus-input-group">
+                    <input type="text" id="val-pdf" class="bbplus-input" placeholder="PDF 파일 선택됨" readonly style="margin-bottom: 12px;">
+                    <button class="bbplus-btn pick-btn" onclick="pickFileMapping('pdf')">📄 내 PC PDF 선택...</button>
+                </div>
+            </div>
+
+            <div id="tab-img" class="tab-content">
+                <div class="bbplus-input-group">
+                    <input type="text" id="val-img" class="bbplus-input" placeholder="이미지 파일 선택됨" readonly style="margin-bottom: 12px;">
+                    <button class="bbplus-btn pick-btn" onclick="pickFileMapping('img')">🖼️ 내 PC 이미지 선택...</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px; padding-top: 12px;">
+                <div id="bbp-hash" style="font-size: 11px; color: var(--m3-outline); word-break: break-all; font-family: monospace;">Hash: -</div>
+            </div>
+        </div>
+
+        <!-- Global Apply Button in Sticky Footer -->
+        <div class="bbp-dialog-footer">
+            <button class="bbplus-btn apply-btn" onclick="saveMapping(activeTab)">✅ 이 위치에 적용하기</button>
+        </div>
+    </div>
+
+    <!-- Text Overlay Popup (Round 2) -->
+    <div id="bbp-text-overlay"></div>
+
+    <!-- Hotspot Container -->
+    <div id="hotspot-container" style="pointer-events:none;"></div>
+
+    <script src="proxy-renderer.js"></script>
+</body>
+</html>

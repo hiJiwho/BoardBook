@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: http: https: file:; font-src 'self' data: https://fonts.gstatic.com;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <title>BoardBook Launcher</title>
+    <style>
+        :root { 
+            /* Material 3 Tonal Palette - Mint/Teal Theme */
+            --m3-primary: #006a60;
+            --m3-on-primary: #ffffff;
+            --m3-primary-container: #74f8e5;
+            --m3-on-primary-container: #00201c;
+            --m3-surface: #f4fbf9;
+            --m3-on-surface: #161d1c;
+            --m3-surface-container: #ecf3f1;
+            --m3-surface-container-high: #e1e9e7;
+            --m3-outline: #6f7977;
+            --m3-outline-variant: #bfc9c6;
+            --m3-error: #ba1a1a;
+            
+            --bg: var(--m3-surface);
+            --accent: var(--m3-primary);
+        }
+
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background: var(--bg); 
+            color: var(--m3-on-surface); 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+        
+        .header { 
+            padding: 1rem 2rem; 
+            background: var(--m3-surface-container-high); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            -webkit-app-region: drag;
+            border-bottom: 1px solid var(--m3-outline-variant);
+        }
+
+        .close-btn {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            background: transparent; border-radius: 20px;
+            cursor: pointer; -webkit-app-region: no-drag;
+            transition: all 0.2s; font-weight: bold; color: var(--m3-outline);
+            font-size: 20px;
+        }
+        .close-btn:hover { background: var(--m3-error); color: white; transform: rotate(90deg); }
+
+        h1 { 
+            margin:0; font-size: 1.25rem; font-weight: 700;
+            color: var(--m3-primary); letter-spacing: -0.5px;
+        }
+        h1 span { color: var(--m3-outline); font-weight: 400; font-size: 0.8rem; margin-left: 8px; }
+
+        #status { 
+            font-size: 0.7rem; font-weight: 700; color: var(--m3-on-primary-container);
+            background: var(--m3-primary-container); padding: 4px 12px; border-radius: 100px; 
+            border: 1px solid var(--m3-outline-variant); 
+        }
+        
+        .main-container { flex: 1; overflow-y: auto; padding: 2rem; }
+        .section-title {
+            color: var(--m3-primary); font-size: 0.9rem; font-weight: 700;
+            margin: 0 0 20px 0; letter-spacing: 0.5px; text-transform: uppercase;
+            opacity: 0.8;
+        }
+
+        .app-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
+            gap: 20px; 
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* M3 App Card */
+        .app-card, .add-card { 
+            background: var(--m3-surface-container); 
+            border-radius: 28px; /* M3 Extra Large Rounding */
+            padding: 24px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; position: relative; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            border: 1px solid transparent; 
+            aspect-ratio: 1/1; 
+            overflow: visible;
+        }
+        
+        .app-card:hover { 
+            transform: translateY(-4px); 
+            background: var(--m3-surface-container-high); 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-color: var(--m3-outline-variant);
+        }
+
+        .card-controls { 
+            position: absolute; top: 12px; right: 12px; 
+            display: none; gap: 4px; z-index: 10;
+        }
+        .app-card:hover .card-controls { display: flex; }
+        
+        .control-btn {
+            width: 32px; height: 32px; border-radius: 16px; border: none; 
+            background: var(--m3-surface); color: var(--m3-outline); 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .control-btn:hover { background: var(--m3-primary); color: white; }
+        .control-btn.delete:hover { background: var(--m3-error); }
+        
+        .icon-wrapper {
+            width: 64px; height: 64px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--m3-primary-container);
+            color: var(--m3-on-primary-container);
+            border-radius: 16px;
+            margin-bottom: 16px;
+            font-size: 2rem;
+            transition: all 0.3s;
+        }
+        .app-card:hover .icon-wrapper { transform: scale(1.05); }
+        
+        .name { font-size: 0.9rem; font-weight: 600; text-align: center; color: var(--m3-on-surface); }
+        
+        .add-card { 
+            border: 2px dashed var(--m3-outline-variant); 
+            color: var(--m3-primary); background: transparent;
+            box-shadow: none;
+        }
+        .add-card:hover { background: var(--m3-primary-container); border-style: solid; border-color: var(--m3-primary); }
+        .add-card .icon { font-size: 2.5rem; margin-bottom: 4px; }
+        .add-card span { font-weight: 600; font-size: 0.85rem; }
+        
+        /* M3 Dialog Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.32); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
+        .modal { background: var(--m3-surface-container-high); width: 90%; max-width: 400px; padding: 24px; border-radius: 28px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+        .modal h2 { margin-top: 0; font-size: 1.5rem; color: var(--m3-on-surface); font-weight: 400; text-align: left; margin-bottom: 24px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 600; color: var(--m3-outline); padding-left: 4px; }
+        .form-group input, .form-group select { 
+            width: 100%; height: 56px; padding: 0 16px; border-radius: 12px; 
+            border: 1px solid var(--m3-outline); background: var(--m3-surface); 
+            color: var(--m3-on-surface); font-family: inherit; font-size: 1rem; outline: none; 
+        }
+        .form-group input:focus { border-width: 2px; border-color: var(--m3-primary); }
+        
+        .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+        .modal-btn { padding: 10px 24px; border-radius: 20px; border: none; cursor: pointer; font-weight: 600; font-family: inherit; transition: all 0.2s; font-size: 0.9rem; }
+        .btn-cancel { background: transparent; color: var(--m3-primary); }
+        .btn-cancel:hover { background: rgba(0,106,96,0.08); }
+        .btn-save { background: var(--m3-primary); color: white; }
+        .btn-save:hover { box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+
+        /* Loading M3 */
+        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--m3-surface); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
+        .loading-spinner { width: 48px; height: 48px; border: 4px solid var(--m3-surface-container); border-top-color: var(--m3-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 24px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Download M3 */
+        #download-bar {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: var(--m3-surface-container-high); border-radius: 16px;
+            padding: 16px 24px; display: none; align-items: center; gap: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 2000; width: 400px;
+        }
+        .dl-progress-container { flex: 1; height: 4px; background: var(--m3-surface); border-radius: 2px; overflow: hidden; }
+        #dl-progress-fill { height: 100%; background: var(--m3-primary); width: 0%; transition: width 0.3s; }
+
+        /* BoardLog Styles (Round 160) */
+        .boardlog-section { margin-bottom: 3rem; }
+        .log-grid { 
+            display: flex; gap: 1.5rem; overflow-x: auto; padding-bottom: 1.5rem; 
+            scrollbar-width: thin; scrollbar-color: var(--accent) transparent;
+        }
+        .log-grid::-webkit-scrollbar { height: 6px; }
+        .log-grid::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+        
+        .log-item { 
+            flex: 0 0 220px; background: var(--m3-surface-container); border-radius: 1.25rem; 
+            overflow: hidden; cursor: pointer; transition: all 0.3s;
+            border: 1px solid var(--m3-outline-variant);
+            position: relative;
+        }
+        .log-item:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+        .log-thumb { width: 100%; aspect-ratio: 16/10; object-fit: cover; background: #f1f5f9; }
+        .log-info { padding: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .log-date { font-size: 0.75rem; font-weight: 600; color: var(--m3-outline); }
+        .log-actions { display: flex; gap: 6px; }
+        .log-action-btn { 
+            width: 28px; height: 28px; border-radius: 50%; border: none;
+            background: var(--m3-primary-container); color: var(--m3-on-primary-container);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; cursor: pointer; transition: all 0.2s;
+        }
+        .log-action-btn:hover { background: var(--m3-primary); color: white; transform: scale(1.1); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <img src="icon.png" style="width: 36px; height: 36px; border-radius: 10px;">
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <h1 style="display: flex; align-items: baseline; gap: 8px;">BoardBook Launcher <span style="font-size: 0.7rem; opacity: 0.5;">v0.9.8-m3</span></h1>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                    <div id="status">연결됨</div>
+                    <button id="btn-usb-export" style="display: none; height: 24px; padding: 0 10px; font-size: 0.65rem; background: var(--m3-primary); color: white; border: none; border-radius: 12px; cursor: pointer; -webkit-app-region: no-drag; font-weight: bold;">USB Sync 📲</button>
+                </div>
+            </div>
+        </div>
+        <div class="close-btn" id="close-launcher">×</div>
+    </div>
+    
+    <div class="main-container">
+        <!-- Serial Port Selection (M3 Redesign) -->
+        <div id="serial-section" style="display: none; background: var(--m3-surface-container); padding: 24px; border-radius: 24px; margin-bottom: 32px; border: 1px solid var(--m3-outline-variant);">
+            <div class="section-title">시리얼 포트 설정 (BoardBook Control)</div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <select id="serial-port-list" style="flex: 1;">
+                    <option value="">포트를 선택하세요...</option>
+                </select>
+                <button id="btn-serial-refresh" class="modal-btn btn-cancel" style="width: 56px; height: 56px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 1.2rem;">🔄</button>
+                <button id="btn-serial-connect" class="modal-btn btn-save" style="height: 56px; border-radius: 12px; font-size: 1rem;">연결하기 🔌</button>
+            </div>
+            <div id="serial-status-text" style="font-size: 0.8rem; margin-top: 12px; color: var(--m3-outline); font-weight: 500;">포트 정보를 확인하고 연결해주세요.</div>
+        </div>
+
+        <div class="section-title">기본 도구 (Utility Viewers)</div>
+        <div class="app-grid" style="grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px; margin-bottom: 40px;">
+            <div class="app-card" id="btn-stand-vid">
+                <div class="icon-wrapper" style="background: #fde8e8; color: #e02424;">🎬</div>
+                <div class="name">비디오</div>
+            </div>
+            <div class="app-card" id="btn-stand-img">
+                <div class="icon-wrapper" style="background: #f5f3ff; color: #7c3aed;">🖼️</div>
+                <div class="name">이미지</div>
+            </div>
+            <div class="app-card" id="btn-stand-pdf">
+                <div class="icon-wrapper" style="background: #fffbeb; color: #d97706;">📄</div>
+                <div class="name">PDF</div>
+            </div>
+            <div class="app-card" id="btn-stand-url">
+                <div class="icon-wrapper" style="background: #e0f2fe; color: #0284c7;">🌐</div>
+                <div class="name">브라우저</div>
+            </div>
+            <div class="app-card" id="btn-stand-board">
+                <div class="icon-wrapper" style="background: #ecfdf5; color: #059669;">🎨</div>
+                <div class="name">화이트보드</div>
+            </div>
+        </div>
+
+        <div class="section-title">등록된 웹 교과서 (Web Textbooks)</div>
+        <div class="app-grid" id="app-grid">
+            <div class="add-card" id="btn-add">
+                <div class="icon">+</div>
+                <span>교과서 추가</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add URL Modal -->
+    <div class="modal-overlay" id="add-modal">
+        <div class="modal">
+            <h2>웹 교과서 추가</h2>
+            <div class="form-group">
+                <label>교과서 명칭</label>
+                <input type="text" id="app-name" placeholder="예: 국어 1-1">
+            </div>
+            <div class="form-group">
+                <label>웹 주소 (URL)</label>
+                <input type="text" id="app-url" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label>학년 선택</label>
+                <select id="app-grade">
+                    <option value="공통">공통</option>
+                    <option value="1학년">1학년</option>
+                    <option value="2학년">2학년</option>
+                    <option value="3학년">3학년</option>
+                    <option value="4학년">4학년</option>
+                    <option value="5학년">5학년</option>
+                    <option value="6학년">6학년</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>검색 키워드 (BoardCast 연동)</label>
+                <input type="text" id="app-subject" placeholder="국어, 수학 (쉼표 구분)">
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn btn-cancel" id="btn-modal-cancel">취소</button>
+                <button class="modal-btn btn-save" id="btn-modal-save">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Bar -->
+    <div id="download-bar">
+        <span id="dl-icon">📥</span>
+        <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span id="dl-filename">Downloading...</span>
+                <span id="dl-percent" style="font-size:11px; font-weight:bold; color:var(--accent);">0%</span>
+            </div>
+            <div class="dl-progress-container">
+                <div id="dl-progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
