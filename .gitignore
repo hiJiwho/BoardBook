@@ -1,11 +1,11 @@
 # Dependency directories
 node_modules/
 
-# Build artifacts
-dist/
+# Build artifacts (Ignoring Dist removed as per request)
+# dist/
 out/
 build/
-*.exe
+# *.exe
 *.msi
 *.zip
 
