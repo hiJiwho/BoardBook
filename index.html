@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoardBook - Smart Classroom Solution</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 { margin-bottom: 0.5rem; }
+        p { color: #86868b; margin-bottom: 2rem; }
+        .status {
+            font-weight: 600;
+            color: #0071e3;
+        }
+        .footer {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: #86868b;
+        }
+        a { color: #0071e3; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>BoardBook</h1>
+        <p>Smart Classroom Solution - Interactive Board Launcher</p>
+        <div id="status-box">
+            <span class="status">최신 버전을 찾는 중...</span>
+        </div>
+        <div class="footer">
+            자동으로 다운로드가 시작되지 않으면 <a id="manual-link" href="#">여기</a>를 클릭하세요.
+        </div>
+    </div>
+
+    <script>
+        const owner = 'hiJiwho';
+        const repo = 'BoardBook';
+
+        async function startDownload() {
+            try {
+                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/latest`);
+                const data = await response.json();
+                
+                // Find the setup file (Installer)
+                const asset = data.assets.find(a => a.name.includes('Setup') && a.name.endsWith('.exe'));
+                
+                if (asset) {
+                    const downloadUrl = asset.browser_download_url;
+                    document.getElementById('status-box').innerHTML = `<span class="status">다운로드를 시작합니다 (버전: ${data.tag_name})</span>`;
+                    document.getElementById('manual-link').href = downloadUrl;
+                    
+                    // Trigger download
+                    window.location.href = downloadUrl;
+                } else {
+                    throw new Error('설치 파일을 찾을 수 없습니다.');
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('status-box').innerHTML = `<span style="color: red;">오류: 최신 버전을 가져오지 못했습니다. <br> <a href="https://github.com/${owner}/${repo}/releases">Releases 페이지</a>에서 직접 다운로드 해주세요.</span>`;
+            }
+        }
+
+        // Start process
+        startDownload();
+    </script>
+</body>
+</html>
